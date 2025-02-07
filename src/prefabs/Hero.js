@@ -1,18 +1,18 @@
 // Hero prefab
 class Hero extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, texture, frame, direction) {
-        super(scene, x, y, texture, frame) // call Sprite parent class
-        scene.add.existing(this)           // add Hero to existing scene
-        scene.physics.add.existing(this)   // add physics body to scene
+        super(scene, x, y, texture, frame);
+        scene.add.existing(this);
+        scene.physics.add.existing(this);
 
-        this.body.setSize(this.width / 2, this.height / 2)
-        this.body.setCollideWorldBounds(true)
+        this.body.setSize(this.width / 2, this.height / 2);
+        this.body.setCollideWorldBounds(true);
 
         // set custom Hero properties
-        this.direction = direction 
-        this.heroVelocity = 100    // in pixels
-        this.dashCooldown = 300    // in ms
-        this.hurtTimer = 250       // in ms
+        this.direction = direction;
+        this.heroVelocity = 100; // px
+        this.dashCooldown = 300; // ms
+        this.hurtTimer = 250; // ms
 
         // initialize state machine managing hero (initial state, possible states, state args[])
         scene.heroFSM = new StateMachine('idle', {
@@ -21,45 +21,53 @@ class Hero extends Phaser.Physics.Arcade.Sprite {
             swing: new SwingState(),
             dash: new DashState(),
             hurt: new HurtState(),
-        }, [scene, this])   // pass these as arguments to maintain scene/object context in the FSM
+            circular: new CircularState(),
+        }, [scene, this]); // pass these as arguments to maintain scene/object context in the FSM
     }
 }
 
 // hero-specific state classes
 class IdleState extends State {
     enter(scene, hero) {
-        hero.setVelocity(0)
-        hero.anims.play(`walk-${hero.direction}`)
-        hero.anims.stop()
+        hero.setVelocity(0);
+        hero.anims.play(`walk-${hero.direction}`);
+        hero.anims.stop();
     }
 
     execute(scene, hero) {
         // use destructuring to make a local copy of the keyboard object
-        const { left, right, up, down, space, shift } = scene.keys
-        const HKey = scene.keys.HKey
+        const { left, right, up, down, space, shift } = scene.keys;
+        const HKey = scene.keys.HKey;
+        const FKey = scene.keys.FKey;
 
         // transition to swing if pressing space
         if(Phaser.Input.Keyboard.JustDown(space)) {
-            this.stateMachine.transition('swing')
-            return
+            this.stateMachine.transition('swing');
+            return;
         }
 
         // transition to dash if pressing shift
         if(Phaser.Input.Keyboard.JustDown(shift)) {
-            this.stateMachine.transition('dash')
-            return
+            this.stateMachine.transition('dash');
+            return;
         }
 
         // hurt if H key input (just for demo purposes)
         if(Phaser.Input.Keyboard.JustDown(HKey)) {
-            this.stateMachine.transition('hurt')
-            return
+            this.stateMachine.transition('hurt');
+            return;
+        }
+
+        // circular swing
+        if (Phaser.Input.Keyboard.JustDown(FKey)) {
+            this.stateMachine.transition('circular');
+            return;
         }
 
         // transition to move if pressing a movement key
         if(left.isDown || right.isDown || up.isDown || down.isDown ) {
-            this.stateMachine.transition('move')
-            return
+            this.stateMachine.transition('move');
+            return;
         }
     }
 }
@@ -67,84 +75,84 @@ class IdleState extends State {
 class MoveState extends State {
     execute(scene, hero) {
         // use destructuring to make a local copy of the keyboard object
-        const { left, right, up, down, space, shift } = scene.keys
-        const HKey = scene.keys.HKey
+        const { left, right, up, down, space, shift } = scene.keys;
+        const HKey = scene.keys.HKey;
 
         // transition to swing if pressing space
         if(Phaser.Input.Keyboard.JustDown(space)) {
-            this.stateMachine.transition('swing')
-            return
+            this.stateMachine.transition('swing');
+            return;
         }
 
         // transition to dash if pressing shift
         if(Phaser.Input.Keyboard.JustDown(shift)) {
-            this.stateMachine.transition('dash')
-            return
+            this.stateMachine.transition('dash');
+            return;
         }
 
         // hurt if H key input (just for demo purposes)
         if(Phaser.Input.Keyboard.JustDown(HKey)) {
-            this.stateMachine.transition('hurt')
-            return
+            this.stateMachine.transition('hurt');
+            return;
         }
 
         // transition to idle if not pressing movement keys
         if(!(left.isDown || right.isDown || up.isDown || down.isDown)) {
-            this.stateMachine.transition('idle')
-            return
+            this.stateMachine.transition('idle');
+            return;
         }
 
         // handle movement
-        let moveDirection = new Phaser.Math.Vector2(0, 0)
+        let moveDirection = new Phaser.Math.Vector2(0, 0);
         if(up.isDown) {
-            moveDirection.y = -1
-            hero.direction = 'up'
+            moveDirection.y = -1;
+            hero.direction = 'up';
         } else if(down.isDown) {
-            moveDirection.y = 1
-            hero.direction = 'down'
+            moveDirection.y = 1;
+            hero.direction = 'down';
         }
         if(left.isDown) {
-            moveDirection.x = -1
-            hero.direction = 'left'
+            moveDirection.x = -1;
+            hero.direction = 'left';
         } else if(right.isDown) {
-            moveDirection.x = 1
-            hero.direction = 'right'
+            moveDirection.x = 1;
+            hero.direction = 'right';
         }
         // normalize movement vector, update hero position, and play proper animation
-        moveDirection.normalize()
-        hero.setVelocity(hero.heroVelocity * moveDirection.x, hero.heroVelocity * moveDirection.y)
-        hero.anims.play(`walk-${hero.direction}`, true)
+        moveDirection.normalize();
+        hero.setVelocity(hero.heroVelocity * moveDirection.x, hero.heroVelocity * moveDirection.y);
+        hero.anims.play(`walk-${hero.direction}`, true);
     }
 }
 
 class SwingState extends State {
     enter(scene, hero) {
-        hero.setVelocity(0)
-        hero.anims.play(`swing-${hero.direction}`)
+        hero.setVelocity(0);
+        hero.anims.play(`swing-${hero.direction}`);
         hero.once('animationcomplete', () => {
-            this.stateMachine.transition('idle')
+            this.stateMachine.transition('idle');
         })
     }
 }
 
 class DashState extends State {
     enter(scene, hero) {
-        hero.setVelocity(0)
-        hero.anims.play(`swing-${hero.direction}`)
-        hero.setTint(0x00AA00)     // turn green
+        hero.setVelocity(0);
+        hero.anims.play(`swing-${hero.direction}`);
+        hero.setTint(0x00AA00); // green
         switch(hero.direction) {
             case 'up':
-                hero.setVelocityY(-hero.heroVelocity * 3)
-                break
+                hero.setVelocityY(-hero.heroVelocity * 3);
+                break;
             case 'down':
-                hero.setVelocityY(hero.heroVelocity * 3)
-                break
+                hero.setVelocityY(hero.heroVelocity * 3);
+                break;
             case 'left':
-                hero.setVelocityX(-hero.heroVelocity * 3)
-                break
+                hero.setVelocityX(-hero.heroVelocity * 3);
+                break;
             case 'right':
-                hero.setVelocityX(hero.heroVelocity * 3)
-                break
+                hero.setVelocityX(hero.heroVelocity * 3);
+                break;
         }
 
         // set a short cooldown delay before going back to idle
@@ -157,30 +165,40 @@ class DashState extends State {
 
 class HurtState extends State {
     enter(scene, hero) {
-        hero.setVelocity(0)
-        hero.anims.play(`walk-${hero.direction}`)
-        hero.anims.stop()
-        hero.setTint(0xFF0000)     // turn red
+        hero.setVelocity(0);
+        hero.anims.play(`walk-${hero.direction}`);
+        hero.anims.stop();
+        hero.setTint(0xFF0000); // red
         // create knockback by sending body in direction opposite facing direction
         switch(hero.direction) {
             case 'up':
-                hero.setVelocityY(hero.heroVelocity*2)
-                break
+                hero.setVelocityY(hero.heroVelocity*2);
+                break;
             case 'down':
-                hero.setVelocityY(-hero.heroVelocity*2)
-                break
+                hero.setVelocityY(-hero.heroVelocity*2);
+                break;
             case 'left':
-                hero.setVelocityX(hero.heroVelocity*2)
-                break
+                hero.setVelocityX(hero.heroVelocity*2);
+                break;
             case 'right':
-                hero.setVelocityX(-hero.heroVelocity*2)
-                break
+                hero.setVelocityX(-hero.heroVelocity*2);
+                break;
         }
 
         // set recovery timer
         scene.time.delayedCall(hero.hurtTimer, () => {
-            hero.clearTint()
-            this.stateMachine.transition('idle')
+            hero.clearTint();
+            this.stateMachine.transition('idle');
+        })
+    }
+}
+
+class CircularState extends State {
+    enter(scene, hero) {
+        hero.setVelocity(0);
+        hero.anims.play('circular-attack');
+        hero.once('animationcomplete', () => {
+            this.stateMachine.transition('idle');
         })
     }
 }
